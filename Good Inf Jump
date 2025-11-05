@@ -4,6 +4,7 @@ local humanoid
 local infiniteJumpEnabled = false
 local canJump = true
 local messageShown = false
+local toggleButton
 
 local function showMessage(text)
     if messageShown then return end
@@ -12,6 +13,7 @@ local function showMessage(text)
     local screenGui = Instance.new("ScreenGui")
     screenGui.ResetOnSpawn = false
     screenGui.IgnoreGuiInset = true
+    screenGui.Name = "ToggleGui"
     screenGui.Parent = playerGui
 
     local label = Instance.new("TextLabel")
@@ -26,11 +28,30 @@ local function showMessage(text)
     label.Text = text
     label.Parent = screenGui
 
+    local timerLabel = Instance.new("TextLabel")
+    timerLabel.Size = UDim2.new(0, 200, 0, 40)
+    timerLabel.Position = UDim2.new(0.5, -100, 0.25, 0)
+    timerLabel.BackgroundColor3 = Color3.fromRGB(28, 170, 234)
+    timerLabel.BackgroundTransparency = 0
+    timerLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+    timerLabel.TextScaled = true
+    timerLabel.Font = Enum.Font.GothamBold
+    timerLabel.TextSize = 24
+    timerLabel.Text = "Message leaves in: 10s"
+    timerLabel.Parent = screenGui
+
     messageShown = true
 
-    task.delay(5, function()
-        screenGui:Destroy()
-    end)
+    local timeRemaining = 10
+    while timeRemaining > 0 do
+        timerLabel.Text = "Message leaves in: " .. timeRemaining .. "s"
+        wait(1)
+        timeRemaining = timeRemaining - 1
+    end
+
+    timerLabel.Text = "Message leaves in: 0s"
+    wait(1)
+    screenGui:Destroy()
 end
 
 local function setupCharacter(character)
@@ -59,8 +80,72 @@ UserInputService.InputBegan:Connect(function(input, gameProcessed)
     if gameProcessed then return end
     if input.KeyCode == Enum.KeyCode.U then
         infiniteJumpEnabled = not infiniteJumpEnabled
-        print("Infinite Jump " .. (infiniteJumpEnabled and "ENABLED" or "DISABLED"))
+        updateToggleText()
     end
 end)
 
-showMessage("Press U to toggle off/on   -->   ( made by lightdesire on dc )")
+local function createMobileToggle()
+    local playerGui = player:WaitForChild("PlayerGui")
+    local screenGui = Instance.new("ScreenGui")
+    screenGui.ResetOnSpawn = false
+    screenGui.IgnoreGuiInset = true
+    screenGui.Name = "ToggleGui"
+    screenGui.Parent = playerGui
+
+    local button = Instance.new("TextButton")
+    button.Size = UDim2.new(0, 35, 0, 12)
+    button.Position = UDim2.new(0.5, -17, 0.9, 0)
+    button.BackgroundColor3 = Color3.fromRGB(0, 128, 255)
+    button.BackgroundTransparency = 0.3
+    button.TextColor3 = Color3.fromRGB(0, 0, 128)
+    button.Font = Enum.Font.Gotham
+    button.TextSize = 8
+    button.Text = "OFF"
+    button.Parent = screenGui
+
+    local buttonOutline = Instance.new("UIStroke")
+    buttonOutline.Parent = button
+    buttonOutline.Thickness = 2
+    buttonOutline.Color = Color3.fromRGB(0, 255, 255)
+    buttonOutline.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+
+    button.MouseButton1Click:Connect(function()
+        infiniteJumpEnabled = not infiniteJumpEnabled
+        updateToggleText()
+    end)
+
+    local close = Instance.new("TextButton")
+    close.Size = UDim2.new(0, 12, 0, 12)
+    close.Position = UDim2.new(0.5, 18, 0.9, 0)
+    close.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+    close.BackgroundTransparency = 0
+    close.TextColor3 = Color3.fromRGB(255, 255, 255)
+    close.Font = Enum.Font.GothamBold
+    close.TextSize = 12
+    close.Text = "✖"
+    close.Parent = screenGui
+
+    local closeOutline = Instance.new("UIStroke")
+    closeOutline.Parent = close
+    closeOutline.Thickness = 2
+    closeOutline.Color = Color3.fromRGB(0, 255, 255)
+    closeOutline.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+
+    close.MouseButton1Click:Connect(function()
+        screenGui:Destroy()
+    end)
+
+    return button
+end
+
+function updateToggleText()
+    if toggleButton then
+        toggleButton.Text = infiniteJumpEnabled and "ON" or "OFF"
+        toggleButton.Font = Enum.Font.GothamBoldItalic
+    end
+end
+
+toggleButton = createMobileToggle()
+
+showMessage("Press U to toggle on/off or press the on/off feature on ur screen  -->   ( made by lightdesire on dc )")
+
