@@ -1,0 +1,66 @@
+local UserInputService = game:GetService("UserInputService")
+local player = game.Players.LocalPlayer
+local humanoid
+local infiniteJumpEnabled = false
+local canJump = true
+local messageShown = false
+
+local function showMessage(text)
+    if messageShown then return end
+
+    local playerGui = player:WaitForChild("PlayerGui")
+    local screenGui = Instance.new("ScreenGui")
+    screenGui.ResetOnSpawn = false
+    screenGui.IgnoreGuiInset = true
+    screenGui.Parent = playerGui
+
+    local label = Instance.new("TextLabel")
+    label.Size = UDim2.new(1, 0, 1, 0)
+    label.Position = UDim2.new(0, 0, 0, 0)
+    label.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+    label.BackgroundTransparency = 0.5
+    label.TextColor3 = Color3.fromRGB(255, 255, 255)
+    label.TextScaled = false
+    label.Font = Enum.Font.SourceSansBold
+    label.TextSize = 18
+    label.Text = text
+    label.Parent = screenGui
+
+    messageShown = true
+
+    task.delay(5, function()
+        screenGui:Destroy()
+    end)
+end
+
+local function setupCharacter(character)
+    humanoid = character:WaitForChild("Humanoid", 10)
+end
+
+player.CharacterAdded:Connect(setupCharacter)
+if player.Character then
+    setupCharacter(player.Character)
+end
+
+UserInputService.JumpRequest:Connect(function()
+    if infiniteJumpEnabled and humanoid and canJump then
+        humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
+        canJump = false
+    end
+end)
+
+UserInputService.InputEnded:Connect(function(input)
+    if input.KeyCode == Enum.KeyCode.Space then
+        canJump = true
+    end
+end)
+
+UserInputService.InputBegan:Connect(function(input, gameProcessed)
+    if gameProcessed then return end
+    if input.KeyCode == Enum.KeyCode.U then
+        infiniteJumpEnabled = not infiniteJumpEnabled
+        print("Infinite Jump " .. (infiniteJumpEnabled and "ENABLED" or "DISABLED"))
+    end
+end)
+
+showMessage("Press U to toggle off/on   -->   ( made by lightdesire on dc )")
