@@ -1,151 +1,143 @@
 local UserInputService = game:GetService("UserInputService")
 local player = game.Players.LocalPlayer
 local humanoid
-local infiniteJumpEnabled = false
-local canJump = true
-local messageShown = false
-local toggleButton
+local infJump = false
+local boost = false
+local toggleBtn, boostBtn, closeBtn
+local defaultJP, boostedJP = 50, 180
+local jumpCooldown, lastJump = 0.29, 0
 
-local function showMessage(text)
-    if messageShown then return end
-
-    local playerGui = player:WaitForChild("PlayerGui")
-    local screenGui = Instance.new("ScreenGui")
-    screenGui.ResetOnSpawn = false
-    screenGui.IgnoreGuiInset = true
-    screenGui.Name = "ToggleGui"
-    screenGui.Parent = playerGui
-
-    local label = Instance.new("TextLabel")
-    label.Size = UDim2.new(1, 0, 1, 0)
-    label.Position = UDim2.new(0, 0, 0, 0)
-    label.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
-    label.BackgroundTransparency = 0.5
-    label.TextColor3 = Color3.fromRGB(255, 255, 255)
-    label.TextScaled = false
-    label.Font = Enum.Font.SourceSansBold
-    label.TextSize = 18
-    label.Text = text
-    label.Parent = screenGui
-
-    local timerLabel = Instance.new("TextLabel")
-    timerLabel.Size = UDim2.new(0, 200, 0, 40)
-    timerLabel.Position = UDim2.new(0.5, -100, 0.25, 0)
-    timerLabel.BackgroundColor3 = Color3.fromRGB(28, 170, 234)
-    timerLabel.BackgroundTransparency = 0
-    timerLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
-    timerLabel.TextScaled = true
-    timerLabel.Font = Enum.Font.GothamBold
-    timerLabel.TextSize = 24
-    timerLabel.Text = "Message leaves in: 10s"
-    timerLabel.Parent = screenGui
-
-    messageShown = true
-
-    local timeRemaining = 10
-    while timeRemaining > 0 do
-        timerLabel.Text = "Message leaves in: " .. timeRemaining .. "s"
-        wait(1)
-        timeRemaining = timeRemaining - 1
-    end
-
-    timerLabel.Text = "Message leaves in: 0s"
-    wait(1)
-    screenGui:Destroy()
+local function setupChar(char)
+	humanoid = char:WaitForChild("Humanoid",10)
 end
 
-local function setupCharacter(character)
-    humanoid = character:WaitForChild("Humanoid", 10)
-end
-
-player.CharacterAdded:Connect(setupCharacter)
-if player.Character then
-    setupCharacter(player.Character)
-end
+player.CharacterAdded:Connect(setupChar)
+if player.Character then setupChar(player.Character) end
 
 UserInputService.JumpRequest:Connect(function()
-    if infiniteJumpEnabled and humanoid and canJump then
-        humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
-        canJump = false
-    end
+	if infJump and humanoid and (tick()-lastJump)>=jumpCooldown then
+		if humanoid:GetState() ~= Enum.HumanoidStateType.Jumping then
+			humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
+			humanoid.Jump = true
+			lastJump = tick()
+		end
+	end
 end)
 
-UserInputService.InputEnded:Connect(function(input)
-    if input.KeyCode == Enum.KeyCode.Space then
-        canJump = true
-    end
+UserInputService.InputBegan:Connect(function(input, gp)
+	if gp then return end
+	if input.KeyCode==Enum.KeyCode.U then
+		infJump = not infJump
+		if toggleBtn then toggleBtn.Text = infJump and "Inf Jump: ON" or "Inf Jump: OFF" end
+	elseif input.KeyCode==Enum.KeyCode.Q then
+		boost = not boost
+		if humanoid then humanoid.JumpPower = boost and boostedJP or defaultJP end
+		if boostBtn then boostBtn.Text = boost and "JP Boost: ON" or "JP Boost: OFF" end
+	end
 end)
 
-UserInputService.InputBegan:Connect(function(input, gameProcessed)
-    if gameProcessed then return end
-    if input.KeyCode == Enum.KeyCode.U then
-        infiniteJumpEnabled = not infiniteJumpEnabled
-        updateToggleText()
-    end
-end)
+local function createMenu()
+	local gui = Instance.new("ScreenGui",player:WaitForChild("PlayerGui"))
+	gui.Name = "InfiniteBoostMenu"
 
-local function createMobileToggle()
-    local playerGui = player:WaitForChild("PlayerGui")
-    local screenGui = Instance.new("ScreenGui")
-    screenGui.ResetOnSpawn = false
-    screenGui.IgnoreGuiInset = true
-    screenGui.Name = "ToggleGui"
-    screenGui.Parent = playerGui
+	local menu = Instance.new("Frame",gui)
+	menu.Size, menu.Position = UDim2.new(0,150,0,75), UDim2.new(0.5,-75,0.5,-50)
+	menu.BackgroundColor3, menu.BackgroundTransparency = Color3.fromRGB(255,255,0),0.2
 
-    local button = Instance.new("TextButton")
-    button.Size = UDim2.new(0, 35, 0, 12)
-    button.Position = UDim2.new(0.5, -17, 0.9, 0)
-    button.BackgroundColor3 = Color3.fromRGB(0, 128, 255)
-    button.BackgroundTransparency = 0.3
-    button.TextColor3 = Color3.fromRGB(0, 0, 128)
-    button.Font = Enum.Font.Gotham
-    button.TextSize = 8
-    button.Text = "OFF"
-    button.Parent = screenGui
+	local title = Instance.new("TextLabel",menu)
+	title.Size, title.Position = UDim2.new(1,0,0,20), UDim2.new(0,0,0,0)
+	title.Text, title.TextColor3, title.TextScaled, title.Font, title.BackgroundTransparency = "Infinite Boost", Color3.new(0,0,0), true, Enum.Font.SourceSansBold, 1
 
-    local buttonOutline = Instance.new("UIStroke")
-    buttonOutline.Parent = button
-    buttonOutline.Thickness = 2
-    buttonOutline.Color = Color3.fromRGB(0, 255, 255)
-    buttonOutline.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+	toggleBtn = Instance.new("TextButton",menu)
+	toggleBtn.Size, toggleBtn.Position = UDim2.new(0,130,0,20), UDim2.new(0,10,0,25)
+	toggleBtn.Text, toggleBtn.TextColor3, toggleBtn.BackgroundColor3, toggleBtn.Font, toggleBtn.TextSize = "Inf Jump: OFF", Color3.new(1,1,1), Color3.fromRGB(144,238,144), Enum.Font.Gotham, 14
+	toggleBtn.MouseButton1Click:Connect(function()
+		infJump = not infJump
+		toggleBtn.Text = infJump and "Inf Jump: ON" or "Inf Jump: OFF"
+	end)
 
-    button.MouseButton1Click:Connect(function()
-        infiniteJumpEnabled = not infiniteJumpEnabled
-        updateToggleText()
-    end)
+	boostBtn = Instance.new("TextButton",menu)
+	boostBtn.Size, boostBtn.Position = UDim2.new(0,130,0,20), UDim2.new(0,10,0,50)
+	boostBtn.Text, boostBtn.TextColor3, boostBtn.BackgroundColor3, boostBtn.Font, boostBtn.TextSize = "JP Boost: OFF", Color3.new(1,1,1), Color3.fromRGB(173,216,230), Enum.Font.Gotham, 14
+	boostBtn.MouseButton1Click:Connect(function()
+		boost = not boost
+		if humanoid then humanoid.JumpPower = boost and boostedJP or defaultJP end
+		boostBtn.Text = boost and "JP Boost: ON" or "JP Boost: OFF"
+	end)
 
-    local close = Instance.new("TextButton")
-    close.Size = UDim2.new(0, 12, 0, 12)
-    close.Position = UDim2.new(0.5, 18, 0.9, 0)
-    close.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
-    close.BackgroundTransparency = 0
-    close.TextColor3 = Color3.fromRGB(255, 255, 255)
-    close.Font = Enum.Font.GothamBold
-    close.TextSize = 12
-    close.Text = "✖"
-    close.Parent = screenGui
+	local creditsBG = Instance.new("Frame",menu)
+	creditsBG.Size, creditsBG.Position = UDim2.new(0,150,0,20), UDim2.new(0,0,1,0)
+	creditsBG.BackgroundColor3, creditsBG.BackgroundTransparency = Color3.fromRGB(0,255,0),0.3
+	local creditsLabel = Instance.new("TextLabel",creditsBG)
+	creditsLabel.Size, creditsLabel.Position = UDim2.new(1,0,1,0), UDim2.new(0,0,0,0)
+	creditsLabel.Text, creditsLabel.TextColor3, creditsLabel.TextScaled, creditsLabel.Font, creditsLabel.BackgroundTransparency = "Inf Jump = U | JP Boost = Q Creds to lightdesire on dc", Color3.new(0,0,0), true, Enum.Font.SourceSans, 1
 
-    local closeOutline = Instance.new("UIStroke")
-    closeOutline.Parent = close
-    closeOutline.Thickness = 2
-    closeOutline.Color = Color3.fromRGB(0, 255, 255)
-    closeOutline.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+	closeBtn = Instance.new("TextButton",menu)
+	closeBtn.Size, closeBtn.Position = UDim2.new(0,12,0,12), UDim2.new(1,-15,0,-15)
+	closeBtn.Text, closeBtn.TextColor3, closeBtn.BackgroundColor3, closeBtn.Font, closeBtn.TextSize = "X", Color3.new(1,1,1), Color3.fromRGB(255,0,0), Enum.Font.GothamBold, 10
+	closeBtn.MouseButton1Click:Connect(function() gui:Destroy() end)
 
-    close.MouseButton1Click:Connect(function()
-        screenGui:Destroy()
-    end)
+	local minBtn = Instance.new("TextButton",menu)
+	minBtn.Size, minBtn.Position = UDim2.new(0,12,0,12), UDim2.new(1,-30,0,-15)
+	minBtn.Text, minBtn.TextColor3, minBtn.BackgroundColor3, minBtn.Font, minBtn.TextSize = "-", Color3.new(0,0,0), Color3.fromRGB(255,255,0), Enum.Font.GothamBold, 10
 
-    return button
+	local openBtn = Instance.new("TextButton",gui)
+	openBtn.Size, openBtn.Position, openBtn.Text, openBtn.BackgroundColor3, openBtn.TextColor3, openBtn.Font, openBtn.TextSize, openBtn.Visible = UDim2.new(0,20,0,20), UDim2.new(0.5,-10,0.5,-10), "+", Color3.fromRGB(255,255,0), Color3.new(0,0,0), Enum.Font.GothamBold, 14, false
+
+	minBtn.MouseButton1Click:Connect(function()
+		menu.Visible = false
+		openBtn.Visible = true
+	end)
+
+	openBtn.MouseButton1Click:Connect(function()
+		menu.Visible = true
+		openBtn.Visible = false
+	end)
+
+	local drag, dragStart, startPos
+	menu.InputBegan:Connect(function(i)
+		if i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType==Enum.UserInputType.Touch then
+			drag = true
+			dragStart = i.Position
+			startPos = menu.Position
+		end
+	end)
+	menu.InputChanged:Connect(function(i)
+		if drag and (i.UserInputType == Enum.UserInputType.MouseMovement or i.UserInputType==Enum.UserInputType.Touch) then
+			local delta = i.Position - dragStart
+			menu.Position = UDim2.new(startPos.X.Scale,startPos.X.Offset+delta.X,startPos.Y.Scale,startPos.Y.Offset+delta.Y)
+		end
+	end)
+	menu.InputEnded:Connect(function(i)
+		if i.UserInputType==Enum.UserInputType.MouseButton1 or i.UserInputType==Enum.UserInputType.Touch then drag=false end
+	end)
+
+	local dragBall, ballStart, ballPos
+	openBtn.InputBegan:Connect(function(i)
+		if i.UserInputType==Enum.UserInputType.MouseButton1 or i.UserInputType==Enum.UserInputType.Touch then
+			dragBall=true
+			ballStart=i.Position
+			ballPos=openBtn.Position
+		end
+	end)
+	openBtn.InputChanged:Connect(function(i)
+		if dragBall and (i.UserInputType==Enum.UserInputType.MouseMovement or i.UserInputType==Enum.UserInputType.Touch) then
+			local delta=i.Position-ballStart
+			openBtn.Position=UDim2.new(ballPos.X.Scale,ballPos.X.Offset+delta.X,ballPos.Y.Scale,ballPos.Y.Offset+delta.Y)
+		end
+	end)
+	openBtn.InputEnded:Connect(function(i)
+		if i.UserInputType==Enum.UserInputType.MouseButton1 or i.UserInputType==Enum.UserInputType.Touch then dragBall=false end
+	end)
+
+	return gui
 end
 
-function updateToggleText()
-    if toggleButton then
-        toggleButton.Text = infiniteJumpEnabled and "ON" or "OFF"
-        toggleButton.Font = Enum.Font.GothamBoldItalic
-    end
-end
+createMenu()
 
-toggleButton = createMobileToggle()
-
-showMessage("Press U to toggle on/off or press the on/off feature on ur screen  -->   ( made by lightdesire on dc )")
+player.CharacterAdded:Connect(function()
+	local gui=player.PlayerGui:FindFirstChild("InfiniteBoostMenu")
+	if gui then gui:Destroy() end
+	createMenu()
+end)
 
