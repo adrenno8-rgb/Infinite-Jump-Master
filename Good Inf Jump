@@ -1,19 +1,19 @@
 local UserInputService = game:GetService("UserInputService")
 local player = game.Players.LocalPlayer
-
 local humanoid
-local infiniteJump = false
+
+local legitInfJump = false
+local blatantInfJump = false
 local jumpBoost = false
 local wallhop = false
 
-local jumpPowerDefault = 50
-local jumpPowerBoosted = 180
-
+local defaultJump = 50
+local boostedJump = 180
 local jumpPressed = false
 local guiButtons = {}
 
-local function setupCharacter(character)
-	humanoid = character:WaitForChild("Humanoid", 10)
+local function setupCharacter(char)
+	humanoid = char:WaitForChild("Humanoid", 10)
 end
 
 if player.Character then
@@ -21,10 +21,14 @@ if player.Character then
 end
 player.CharacterAdded:Connect(setupCharacter)
 
-local function updateButtonTexts()
-	if guiButtons.toggle then
-		guiButtons.toggle.Text = infiniteJump and "Inf Jump: ON" or "Inf Jump: OFF"
-		guiButtons.toggle.BackgroundColor3 = infiniteJump and Color3.fromRGB(0,150,0) or Color3.fromRGB(100,0,0)
+local function updateButtons()
+	if guiButtons.legit then
+		guiButtons.legit.Text = legitInfJump and "Legit Inf Jump: ON" or "Legit Inf Jump: OFF"
+		guiButtons.legit.BackgroundColor3 = legitInfJump and Color3.fromRGB(0,150,0) or Color3.fromRGB(100,0,0)
+	end
+	if guiButtons.blatant then
+		guiButtons.blatant.Text = blatantInfJump and "Blatant Inf Jump: ON" or "Blatant Inf Jump: OFF"
+		guiButtons.blatant.BackgroundColor3 = blatantInfJump and Color3.fromRGB(0,150,0) or Color3.fromRGB(100,0,0)
 	end
 	if guiButtons.boost then
 		guiButtons.boost.Text = jumpBoost and "JP Boost: ON" or "JP Boost: OFF"
@@ -39,33 +43,18 @@ end
 UserInputService.InputBegan:Connect(function(input, processed)
 	if processed then return end
 	if input.UserInputType == Enum.UserInputType.Keyboard and input.KeyCode == Enum.KeyCode.Space then
-		if not jumpPressed then
-			jumpPressed = true
-			if infiniteJump and humanoid then
-				local state = humanoid:GetState()
-				if state == Enum.HumanoidStateType.Running or state == Enum.HumanoidStateType.Landed 
-				or state == Enum.HumanoidStateType.Freefall or state == Enum.HumanoidStateType.Physics then
-					humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
-					humanoid.Jump = true
-					if wallhop and humanoid.RootPart then
-						humanoid.RootPart.CFrame = humanoid.RootPart.CFrame * CFrame.Angles(0, math.rad(85), 0)
-					end
+		jumpPressed = true
+		if humanoid and legitInfJump then
+			local state = humanoid:GetState()
+			if state == Enum.HumanoidStateType.Running or state == Enum.HumanoidStateType.Landed or
+			   state == Enum.HumanoidStateType.Freefall or state == Enum.HumanoidStateType.Physics then
+				humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
+				task.wait(0.05)
+				if wallhop and humanoid.RootPart then
+					humanoid.RootPart.CFrame = humanoid.RootPart.CFrame * CFrame.Angles(0, math.rad(840), 0)
 				end
 			end
 		end
-	end
-	if input.KeyCode == Enum.KeyCode.U then
-		infiniteJump = not infiniteJump
-		updateButtonTexts()
-	elseif input.KeyCode == Enum.KeyCode.Q then
-		jumpBoost = not jumpBoost
-		if humanoid then
-			humanoid.JumpPower = jumpBoost and jumpPowerBoosted or jumpPowerDefault
-		end
-		updateButtonTexts()
-	elseif input.KeyCode == Enum.KeyCode.E then
-		wallhop = not wallhop
-		updateButtonTexts()
 	end
 end)
 
@@ -75,18 +64,31 @@ UserInputService.InputEnded:Connect(function(input)
 	end
 end)
 
+task.spawn(function()
+	while true do
+		task.wait(0.03)
+		if blatantInfJump and jumpPressed and humanoid then
+			humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
+			humanoid.Jump = true
+			if wallhop and humanoid.RootPart then
+				humanoid.RootPart.CFrame = humanoid.RootPart.CFrame * CFrame.Angles(0, math.rad(840), 0)
+			end
+		end
+	end
+end)
+
 local function createMenu()
 	local gui = Instance.new("ScreenGui", player:WaitForChild("PlayerGui"))
 	gui.Name = "InfiniteBoostMenu"
 
 	local frame = Instance.new("Frame", gui)
-	frame.Size = UDim2.new(0, 160, 0, 160)
-	frame.Position = UDim2.new(0.5, -80, 0.5, -80)
+	frame.Size = UDim2.new(0, 160, 0, 210)
+	frame.Position = UDim2.new(0.5, -80, 0.5, -105)
 	frame.BackgroundColor3 = Color3.fromRGB(35,35,35)
 
 	local title = Instance.new("TextLabel", frame)
-	title.Size = UDim2.new(1, 0, 0, 28)
-	title.Position = UDim2.new(0, 0, 0, 10)
+	title.Size = UDim2.new(1, -20, 0, 28)
+	title.Position = UDim2.new(0, 5, 0, 10)
 	title.Text = "Infinite Boost"
 	title.TextColor3 = Color3.fromRGB(255,255,255)
 	title.TextScaled = true
@@ -101,57 +103,99 @@ local function createMenu()
 		btn.TextColor3 = Color3.fromRGB(255,255,255)
 		btn.BackgroundColor3 = Color3.fromRGB(100,0,0)
 		btn.Font = Enum.Font.Gotham
-		btn.TextSize = 14
-		btn.MouseButton1Click:Connect(callback)
+		btn.TextSize = 12
+
+		local hovering = false
+		local defaultColor = btn.BackgroundColor3
+		local defaultScale = btn.Size
+
+		local function updateHover()
+			btn.BackgroundColor3 = hovering and Color3.fromRGB(180,0,0) or (btn.Text:find("ON") and Color3.fromRGB(0,150,0) or defaultColor)
+			btn.Size = hovering and UDim2.new(0,150,0,30) or defaultScale
+		end
+
+		btn.MouseEnter:Connect(function() hovering = true updateHover() end)
+		btn.MouseLeave:Connect(function() hovering = false updateHover() end)
+		btn.TouchTap:Connect(function()
+			hovering = true
+			updateHover()
+			task.wait(0.2)
+			hovering = false
+			updateHover()
+		end)
+
+		btn.MouseButton1Click:Connect(function()
+			callback()
+			updateButtons()
+		end)
+
 		return btn
 	end
 
-	guiButtons.toggle = createButton("Inf Jump: OFF", 50, function()
-		infiniteJump = not infiniteJump
-		updateButtonTexts()
+	guiButtons.legit = createButton("Legit Inf Jump: OFF", 50, function()
+		legitInfJump = not legitInfJump
+		if legitInfJump then blatantInfJump = false end
 	end)
 
-	guiButtons.boost = createButton("JP Boost: OFF", 80, function()
+	guiButtons.blatant = createButton("Blatant Inf Jump: OFF", 85, function()
+		blatantInfJump = not blatantInfJump
+		if blatantInfJump then legitInfJump = false end
+	end)
+
+	guiButtons.boost = createButton("JP Boost: OFF", 120, function()
 		jumpBoost = not jumpBoost
 		if humanoid then
-			humanoid.JumpPower = jumpBoost and jumpPowerBoosted or jumpPowerDefault
+			humanoid.JumpPower = jumpBoost and boostedJump or defaultJump
 		end
-		updateButtonTexts()
 	end)
 
-	guiButtons.wallhop = createButton("Wallhop: OFF", 110, function()
+	guiButtons.wallhop = createButton("Wallhop: OFF", 155, function()
 		wallhop = not wallhop
-		updateButtonTexts()
-	end)
-
-	local closeBtn = Instance.new("TextButton", frame)
-	closeBtn.Size = UDim2.new(0, 6, 0, 6)
-	closeBtn.Position = UDim2.new(1, -10, 0, 4)
-	closeBtn.Text = "X"
-	closeBtn.TextColor3 = Color3.fromRGB(255,255,255)
-	closeBtn.TextSize = 10
-	closeBtn.BackgroundColor3 = Color3.fromRGB(50,50,50)
-	closeBtn.Font = Enum.Font.SourceSansBold
-	closeBtn.MouseButton1Click:Connect(function()
-		gui:Destroy()
 	end)
 
 	local minimizeBtn = Instance.new("TextButton", frame)
-	minimizeBtn.Size = UDim2.new(0, 6, 0, 6)
-	minimizeBtn.Position = UDim2.new(1, -20, 0, 4)
+	minimizeBtn.Size = UDim2.new(0, 12, 0, 12)
+	minimizeBtn.Position = UDim2.new(1, -12, 0, 2)
 	minimizeBtn.Text = "—"
-	minimizeBtn.TextColor3 = Color3.fromRGB(255,255,255)
-	minimizeBtn.TextSize = 10
-	minimizeBtn.BackgroundColor3 = Color3.fromRGB(50,50,50)
+	minimizeBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+	minimizeBtn.TextSize = 12
+	minimizeBtn.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
 	minimizeBtn.Font = Enum.Font.GothamBold
+	minimizeBtn.BorderSizePixel = 0
+
+	local hover = false
+	local function updateHover()
+		minimizeBtn.BackgroundColor3 = hover and Color3.fromRGB(90,90,90) or Color3.fromRGB(50,50,50)
+	end
+
+	minimizeBtn.MouseEnter:Connect(function() hover = true updateHover() end)
+	minimizeBtn.MouseLeave:Connect(function() hover = false updateHover() end)
+	minimizeBtn.TouchTap:Connect(function()
+		hover = true
+		updateHover()
+		task.wait(0.2)
+		hover = false
+		updateHover()
+	end)
+
+	local versionLabel = Instance.new("TextLabel", frame)
+	versionLabel.Size = UDim2.new(1,0,0,20)
+	versionLabel.Position = UDim2.new(0,0,1,-22)
+	versionLabel.Text = "v1.5 credits to lightdesire on dc"
+	versionLabel.TextColor3 = Color3.fromRGB(200,200,200)
+	versionLabel.TextScaled = true
+	versionLabel.Font = Enum.Font.SourceSans
+	versionLabel.BackgroundTransparency = 1
 
 	local minimized = false
 	minimizeBtn.MouseButton1Click:Connect(function()
 		minimized = not minimized
-		guiButtons.toggle.Visible = not minimized
+		guiButtons.legit.Visible = not minimized
+		guiButtons.blatant.Visible = not minimized
 		guiButtons.boost.Visible = not minimized
 		guiButtons.wallhop.Visible = not minimized
-		frame.Size = minimized and UDim2.new(0,160,0,40) or UDim2.new(0,160,0,160)
+		versionLabel.Visible = not minimized
+		frame.Size = minimized and UDim2.new(0,160,0,40) or UDim2.new(0,160,0,210)
 	end)
 
 	local dragStart, startPos
@@ -161,17 +205,21 @@ local function createMenu()
 			startPos = frame.Position
 		end
 	end)
+
 	frame.InputChanged:Connect(function(input)
 		if dragStart and input.UserInputType == Enum.UserInputType.MouseMovement then
 			local delta = input.Position - dragStart
 			frame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
 		end
 	end)
+
 	frame.InputEnded:Connect(function(input)
 		if input.UserInputType == Enum.UserInputType.MouseButton1 then
 			dragStart = nil
 		end
 	end)
+
+	updateButtons()
 end
 
 createMenu()
