@@ -1,143 +1,184 @@
 local UserInputService = game:GetService("UserInputService")
 local player = game.Players.LocalPlayer
-local humanoid
-local infJump = false
-local boost = false
-local toggleBtn, boostBtn, closeBtn
-local defaultJP, boostedJP = 50, 180
-local jumpCooldown, lastJump = 0.29, 0
 
-local function setupChar(char)
-	humanoid = char:WaitForChild("Humanoid",10)
+local humanoid
+local infiniteJump = false
+local jumpBoost = false
+local wallhop = false
+
+local jumpPowerDefault = 50
+local jumpPowerBoosted = 180
+
+local jumpPressed = false
+local guiButtons = {}
+
+local function setupCharacter(character)
+	humanoid = character:WaitForChild("Humanoid", 10)
 end
 
-player.CharacterAdded:Connect(setupChar)
-if player.Character then setupChar(player.Character) end
+if player.Character then
+	setupCharacter(player.Character)
+end
+player.CharacterAdded:Connect(setupCharacter)
 
-UserInputService.JumpRequest:Connect(function()
-	if infJump and humanoid and (tick()-lastJump)>=jumpCooldown then
-		if humanoid:GetState() ~= Enum.HumanoidStateType.Jumping then
-			humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
-			humanoid.Jump = true
-			lastJump = tick()
+local function updateButtonTexts()
+	if guiButtons.toggle then
+		guiButtons.toggle.Text = infiniteJump and "Inf Jump: ON" or "Inf Jump: OFF"
+		guiButtons.toggle.BackgroundColor3 = infiniteJump and Color3.fromRGB(0,150,0) or Color3.fromRGB(100,0,0)
+	end
+	if guiButtons.boost then
+		guiButtons.boost.Text = jumpBoost and "JP Boost: ON" or "JP Boost: OFF"
+		guiButtons.boost.BackgroundColor3 = jumpBoost and Color3.fromRGB(0,150,0) or Color3.fromRGB(100,0,0)
+	end
+	if guiButtons.wallhop then
+		guiButtons.wallhop.Text = wallhop and "Wallhop: ON" or "Wallhop: OFF"
+		guiButtons.wallhop.BackgroundColor3 = wallhop and Color3.fromRGB(0,150,0) or Color3.fromRGB(100,0,0)
+	end
+end
+
+UserInputService.InputBegan:Connect(function(input, processed)
+	if processed then return end
+	if input.UserInputType == Enum.UserInputType.Keyboard and input.KeyCode == Enum.KeyCode.Space then
+		if not jumpPressed then
+			jumpPressed = true
+			if infiniteJump and humanoid then
+				local state = humanoid:GetState()
+				if state == Enum.HumanoidStateType.Running or state == Enum.HumanoidStateType.Landed 
+				or state == Enum.HumanoidStateType.Freefall or state == Enum.HumanoidStateType.Physics then
+					humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
+					humanoid.Jump = true
+					if wallhop and humanoid.RootPart then
+						humanoid.RootPart.CFrame = humanoid.RootPart.CFrame * CFrame.Angles(0, math.rad(85), 0)
+					end
+				end
+			end
 		end
+	end
+	if input.KeyCode == Enum.KeyCode.U then
+		infiniteJump = not infiniteJump
+		updateButtonTexts()
+	elseif input.KeyCode == Enum.KeyCode.Q then
+		jumpBoost = not jumpBoost
+		if humanoid then
+			humanoid.JumpPower = jumpBoost and jumpPowerBoosted or jumpPowerDefault
+		end
+		updateButtonTexts()
+	elseif input.KeyCode == Enum.KeyCode.E then
+		wallhop = not wallhop
+		updateButtonTexts()
 	end
 end)
 
-UserInputService.InputBegan:Connect(function(input, gp)
-	if gp then return end
-	if input.KeyCode==Enum.KeyCode.U then
-		infJump = not infJump
-		if toggleBtn then toggleBtn.Text = infJump and "Inf Jump: ON" or "Inf Jump: OFF" end
-	elseif input.KeyCode==Enum.KeyCode.Q then
-		boost = not boost
-		if humanoid then humanoid.JumpPower = boost and boostedJP or defaultJP end
-		if boostBtn then boostBtn.Text = boost and "JP Boost: ON" or "JP Boost: OFF" end
+UserInputService.InputEnded:Connect(function(input)
+	if input.UserInputType == Enum.UserInputType.Keyboard and input.KeyCode == Enum.KeyCode.Space then
+		jumpPressed = false
 	end
 end)
 
 local function createMenu()
-	local gui = Instance.new("ScreenGui",player:WaitForChild("PlayerGui"))
+	local gui = Instance.new("ScreenGui", player:WaitForChild("PlayerGui"))
 	gui.Name = "InfiniteBoostMenu"
 
-	local menu = Instance.new("Frame",gui)
-	menu.Size, menu.Position = UDim2.new(0,150,0,75), UDim2.new(0.5,-75,0.5,-50)
-	menu.BackgroundColor3, menu.BackgroundTransparency = Color3.fromRGB(255,255,0),0.2
+	local frame = Instance.new("Frame", gui)
+	frame.Size = UDim2.new(0, 160, 0, 160)
+	frame.Position = UDim2.new(0.5, -80, 0.5, -80)
+	frame.BackgroundColor3 = Color3.fromRGB(35,35,35)
 
-	local title = Instance.new("TextLabel",menu)
-	title.Size, title.Position = UDim2.new(1,0,0,20), UDim2.new(0,0,0,0)
-	title.Text, title.TextColor3, title.TextScaled, title.Font, title.BackgroundTransparency = "Infinite Boost", Color3.new(0,0,0), true, Enum.Font.SourceSansBold, 1
+	local title = Instance.new("TextLabel", frame)
+	title.Size = UDim2.new(1, 0, 0, 28)
+	title.Position = UDim2.new(0, 0, 0, 10)
+	title.Text = "Infinite Boost"
+	title.TextColor3 = Color3.fromRGB(255,255,255)
+	title.TextScaled = true
+	title.Font = Enum.Font.SourceSansBold
+	title.BackgroundTransparency = 1
 
-	toggleBtn = Instance.new("TextButton",menu)
-	toggleBtn.Size, toggleBtn.Position = UDim2.new(0,130,0,20), UDim2.new(0,10,0,25)
-	toggleBtn.Text, toggleBtn.TextColor3, toggleBtn.BackgroundColor3, toggleBtn.Font, toggleBtn.TextSize = "Inf Jump: OFF", Color3.new(1,1,1), Color3.fromRGB(144,238,144), Enum.Font.Gotham, 14
-	toggleBtn.MouseButton1Click:Connect(function()
-		infJump = not infJump
-		toggleBtn.Text = infJump and "Inf Jump: ON" or "Inf Jump: OFF"
+	local function createButton(text, yPos, callback)
+		local btn = Instance.new("TextButton", frame)
+		btn.Size = UDim2.new(0, 140, 0, 25)
+		btn.Position = UDim2.new(0, 10, 0, yPos)
+		btn.Text = text
+		btn.TextColor3 = Color3.fromRGB(255,255,255)
+		btn.BackgroundColor3 = Color3.fromRGB(100,0,0)
+		btn.Font = Enum.Font.Gotham
+		btn.TextSize = 14
+		btn.MouseButton1Click:Connect(callback)
+		return btn
+	end
+
+	guiButtons.toggle = createButton("Inf Jump: OFF", 50, function()
+		infiniteJump = not infiniteJump
+		updateButtonTexts()
 	end)
 
-	boostBtn = Instance.new("TextButton",menu)
-	boostBtn.Size, boostBtn.Position = UDim2.new(0,130,0,20), UDim2.new(0,10,0,50)
-	boostBtn.Text, boostBtn.TextColor3, boostBtn.BackgroundColor3, boostBtn.Font, boostBtn.TextSize = "JP Boost: OFF", Color3.new(1,1,1), Color3.fromRGB(173,216,230), Enum.Font.Gotham, 14
-	boostBtn.MouseButton1Click:Connect(function()
-		boost = not boost
-		if humanoid then humanoid.JumpPower = boost and boostedJP or defaultJP end
-		boostBtn.Text = boost and "JP Boost: ON" or "JP Boost: OFF"
+	guiButtons.boost = createButton("JP Boost: OFF", 80, function()
+		jumpBoost = not jumpBoost
+		if humanoid then
+			humanoid.JumpPower = jumpBoost and jumpPowerBoosted or jumpPowerDefault
+		end
+		updateButtonTexts()
 	end)
 
-	local creditsBG = Instance.new("Frame",menu)
-	creditsBG.Size, creditsBG.Position = UDim2.new(0,150,0,20), UDim2.new(0,0,1,0)
-	creditsBG.BackgroundColor3, creditsBG.BackgroundTransparency = Color3.fromRGB(0,255,0),0.3
-	local creditsLabel = Instance.new("TextLabel",creditsBG)
-	creditsLabel.Size, creditsLabel.Position = UDim2.new(1,0,1,0), UDim2.new(0,0,0,0)
-	creditsLabel.Text, creditsLabel.TextColor3, creditsLabel.TextScaled, creditsLabel.Font, creditsLabel.BackgroundTransparency = "Inf Jump = U | JP Boost = Q Creds to lightdesire on dc", Color3.new(0,0,0), true, Enum.Font.SourceSans, 1
-
-	closeBtn = Instance.new("TextButton",menu)
-	closeBtn.Size, closeBtn.Position = UDim2.new(0,12,0,12), UDim2.new(1,-15,0,-15)
-	closeBtn.Text, closeBtn.TextColor3, closeBtn.BackgroundColor3, closeBtn.Font, closeBtn.TextSize = "X", Color3.new(1,1,1), Color3.fromRGB(255,0,0), Enum.Font.GothamBold, 10
-	closeBtn.MouseButton1Click:Connect(function() gui:Destroy() end)
-
-	local minBtn = Instance.new("TextButton",menu)
-	minBtn.Size, minBtn.Position = UDim2.new(0,12,0,12), UDim2.new(1,-30,0,-15)
-	minBtn.Text, minBtn.TextColor3, minBtn.BackgroundColor3, minBtn.Font, minBtn.TextSize = "-", Color3.new(0,0,0), Color3.fromRGB(255,255,0), Enum.Font.GothamBold, 10
-
-	local openBtn = Instance.new("TextButton",gui)
-	openBtn.Size, openBtn.Position, openBtn.Text, openBtn.BackgroundColor3, openBtn.TextColor3, openBtn.Font, openBtn.TextSize, openBtn.Visible = UDim2.new(0,20,0,20), UDim2.new(0.5,-10,0.5,-10), "+", Color3.fromRGB(255,255,0), Color3.new(0,0,0), Enum.Font.GothamBold, 14, false
-
-	minBtn.MouseButton1Click:Connect(function()
-		menu.Visible = false
-		openBtn.Visible = true
+	guiButtons.wallhop = createButton("Wallhop: OFF", 110, function()
+		wallhop = not wallhop
+		updateButtonTexts()
 	end)
 
-	openBtn.MouseButton1Click:Connect(function()
-		menu.Visible = true
-		openBtn.Visible = false
+	local closeBtn = Instance.new("TextButton", frame)
+	closeBtn.Size = UDim2.new(0, 6, 0, 6)
+	closeBtn.Position = UDim2.new(1, -10, 0, 4)
+	closeBtn.Text = "X"
+	closeBtn.TextColor3 = Color3.fromRGB(255,255,255)
+	closeBtn.TextSize = 10
+	closeBtn.BackgroundColor3 = Color3.fromRGB(50,50,50)
+	closeBtn.Font = Enum.Font.SourceSansBold
+	closeBtn.MouseButton1Click:Connect(function()
+		gui:Destroy()
 	end)
 
-	local drag, dragStart, startPos
-	menu.InputBegan:Connect(function(i)
-		if i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType==Enum.UserInputType.Touch then
-			drag = true
-			dragStart = i.Position
-			startPos = menu.Position
+	local minimizeBtn = Instance.new("TextButton", frame)
+	minimizeBtn.Size = UDim2.new(0, 6, 0, 6)
+	minimizeBtn.Position = UDim2.new(1, -20, 0, 4)
+	minimizeBtn.Text = "—"
+	minimizeBtn.TextColor3 = Color3.fromRGB(255,255,255)
+	minimizeBtn.TextSize = 10
+	minimizeBtn.BackgroundColor3 = Color3.fromRGB(50,50,50)
+	minimizeBtn.Font = Enum.Font.GothamBold
+
+	local minimized = false
+	minimizeBtn.MouseButton1Click:Connect(function()
+		minimized = not minimized
+		guiButtons.toggle.Visible = not minimized
+		guiButtons.boost.Visible = not minimized
+		guiButtons.wallhop.Visible = not minimized
+		frame.Size = minimized and UDim2.new(0,160,0,40) or UDim2.new(0,160,0,160)
+	end)
+
+	local dragStart, startPos
+	frame.InputBegan:Connect(function(input)
+		if input.UserInputType == Enum.UserInputType.MouseButton1 then
+			dragStart = input.Position
+			startPos = frame.Position
 		end
 	end)
-	menu.InputChanged:Connect(function(i)
-		if drag and (i.UserInputType == Enum.UserInputType.MouseMovement or i.UserInputType==Enum.UserInputType.Touch) then
-			local delta = i.Position - dragStart
-			menu.Position = UDim2.new(startPos.X.Scale,startPos.X.Offset+delta.X,startPos.Y.Scale,startPos.Y.Offset+delta.Y)
+	frame.InputChanged:Connect(function(input)
+		if dragStart and input.UserInputType == Enum.UserInputType.MouseMovement then
+			local delta = input.Position - dragStart
+			frame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
 		end
 	end)
-	menu.InputEnded:Connect(function(i)
-		if i.UserInputType==Enum.UserInputType.MouseButton1 or i.UserInputType==Enum.UserInputType.Touch then drag=false end
-	end)
-
-	local dragBall, ballStart, ballPos
-	openBtn.InputBegan:Connect(function(i)
-		if i.UserInputType==Enum.UserInputType.MouseButton1 or i.UserInputType==Enum.UserInputType.Touch then
-			dragBall=true
-			ballStart=i.Position
-			ballPos=openBtn.Position
+	frame.InputEnded:Connect(function(input)
+		if input.UserInputType == Enum.UserInputType.MouseButton1 then
+			dragStart = nil
 		end
 	end)
-	openBtn.InputChanged:Connect(function(i)
-		if dragBall and (i.UserInputType==Enum.UserInputType.MouseMovement or i.UserInputType==Enum.UserInputType.Touch) then
-			local delta=i.Position-ballStart
-			openBtn.Position=UDim2.new(ballPos.X.Scale,ballPos.X.Offset+delta.X,ballPos.Y.Scale,ballPos.Y.Offset+delta.Y)
-		end
-	end)
-	openBtn.InputEnded:Connect(function(i)
-		if i.UserInputType==Enum.UserInputType.MouseButton1 or i.UserInputType==Enum.UserInputType.Touch then dragBall=false end
-	end)
-
-	return gui
 end
 
 createMenu()
 
 player.CharacterAdded:Connect(function()
-	local gui=player.PlayerGui:FindFirstChild("InfiniteBoostMenu")
-	if gui then gui:Destroy() end
+	local existing = player.PlayerGui:FindFirstChild("InfiniteBoostMenu")
+	if existing then existing:Destroy() end
 	createMenu()
 end)
 
